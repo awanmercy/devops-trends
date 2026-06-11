@@ -1,8 +1,7 @@
 name: devops-trends CI # Name shown in the Actions tab
 on:
 push:
-branches: [main] # Runs on every push to main — webhook built
-in
+branches: [main] # Runs on every push to main — webhook built in
 workflow_dispatch: # Adds a manual Run workflow button
 jobs:
 build:
@@ -21,15 +20,11 @@ run: mvn clean compile # Compiles Java source files
 - name: Test
 run: mvn test # Runs JUnit tests
 - name: Package
-run: mvn package -DskipTests # -D defines a property: skip tests
-here
-# Tests already ran in the previous
+run: mvn package -DskipTests # -D defines a property: skip tests here # Tests already ran in the previous
 step
 - name: Upload WAR artifact
 uses: actions/upload-artifact@v4 # Stores WAR on GitHub
 with:
-name: devops-trends-war # The name CD uses to find this
-file
+name: devops-trends-war # The name CD uses to find this file
 path: target/devops-trends.war # The file to store
-retention-days: 1 # Delete after 1 day — CD picks
-it up in seconds
+retention-days: 1 # Delete after 1 day — CD picks it up in seconds
