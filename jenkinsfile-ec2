@@ -2,42 +2,37 @@ pipeline {
     agent any
  
     environment {
-        // Tomcat private IP (deploys) - Make sure to insert your actual private IP/hostname
-        TOMCAT_URL = 'http://172.31.39.13:8080'
-        // Tomcat Elastic IP (browsing) - Make sure to insert your actual public IP/hostname
-        TOMCAT_PUBLIC_URL = 'http://16.16.44.64:8080'
-        // Tomcat application path
-        CONTEXT_PATH = '/devops-trends'
+        TOMCAT_URL        = 'http://172.31.15.104:8080'   // Tomcat private IP (deploys)
+        TOMCAT_PUBLIC_URL = 'http://51.21.98.206.190:8080' // Tomcat Elastic IP (browsing)
+        CONTEXT_PATH      = '/devops-trends'
     }
  
     stages {
         stage('Checkout') {
             steps {
                 echo 'Pulling source code from GitHub...'
-                // Fixed double slash in the github URL template
                 git branch: 'main',
-                    credentialsId: 'githubpat',
-                    url: 'https://github.com/awanmercy/devops-trends.git .'
+                    credentialsId: 'github-pat',
+                    url: 'https://github.com/awanmercy/devops-trends.git'
             }
         }
-        stage('Build') {
+ 
+        stage('Build & Test') {
             steps {
-                echo 'Compiling the application...'
-                sh 'mvn -B clean compile'
+                echo 'Compiling and running unit tests...'
+                // 'mvn clean test' compiles the code and executes unit tests in one go
+                sh 'mvn -B clean test'
             }
         }
-        stage('Test') {
-            steps {
-                echo 'Running tests...'
-                sh 'mvn -B test'
-            }
-        }
+ 
         stage('Package') {
             steps {
                 echo 'Packaging into WAR file...'
+                // Since tests already passed in the previous stage, we package without running tests again
                 sh 'mvn -B package -DskipTests'
             }
         }
+ 
         stage('Deploy to Tomcat') {
             steps {
                 echo "Deploying to Tomcat EC2 at ${TOMCAT_URL}..."
