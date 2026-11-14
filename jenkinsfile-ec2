@@ -1,12 +1,21 @@
 pipeline {
     agent any
- 
-    environment {
-        TOMCAT_URL        = 'http://172.31.15.104:8080'   // Tomcat private IP (deploys)
-        TOMCAT_PUBLIC_URL = 'http://51.21.98.206.190:8080' // Tomcat Elastic IP (browsing)
-        CONTEXT_PATH      = '/devops-trends'
+
+    triggers {
+        githubPush()
     }
- 
+
+    environment {
+        // Tomcat private IP, used for the deployment
+        TOMCAT_URL = 'http://172.31.12.33:8080'
+        // Tomcat Elastic IP, used for browsing
+        TOMCAT_PUBLIC_URL = 'http://16.192.134.170:8080'
+        // Application path on Tomcat
+        CONTEXT_PATH = '/devops-trends'
+        // Folder that holds pom.xml, or '.' when it is at the top level
+        APP_DIR = 'devops-trends'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -16,46 +25,51 @@ pipeline {
                     url: 'https://github.com/awanmercy/devops-trends.git'
             }
         }
- 
-        stage('Build & Test') {
+        stage('Build') {
             steps {
-                echo 'Compiling and running unit tests...'
-                // 'mvn clean test' compiles the code and executes unit tests in one go
-                sh 'mvn -B clean test'
+                echo 'Compiling the application...'
+                dir("${APP_DIR}") {
+                    sh 'mvn -B clean compile'
+                }
             }
         }
- 
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                dir("${APP_DIR}") {
+                    sh 'mvn -B test'
+                }
+            }
+        }
         stage('Package') {
             steps {
                 echo 'Packaging into WAR file...'
-                // Since tests already passed in the previous stage, we package without running tests again
-                sh 'mvn -B package -DskipTests'
+                dir("${APP_DIR}") {
+                    sh 'mvn -B package -DskipTests'
+                }
             }
         }
- 
         stage('Deploy to Tomcat') {
             steps {
-                echo "Deploying to Tomcat EC2 at ${TOMCAT_URL}..."
-                deploy adapters: [
-                    tomcat9(
-                        credentialsId: 'tomcatcreds',
-                        url: "${TOMCAT_URL}"
-                    )
-                ],
-                contextPath: "${CONTEXT_PATH}",
-                war: 'target/devops-trends.war'
+                echo "Deploying to Tomcat 10 at ${TOMCAT_URL}..."
+                withCredentials([usernamePassword(credentialsId: 'TomcatCreds', usernameVariable: 'TC_USER', passwordVariable: 'TC_PASS')]) {
+                    sh '''
+                        RESPONSE=$(curl -sS --connect-timeout 10 -u "$TC_USER:$TC_PASS" -T "$APP_DIR/target/devops-trends.war" "$TOMCAT_URL/manager/text/deploy?path=$CONTEXT_PATH&update=true")
+                        echo "$RESPONSE"
+                        echo "$RESPONSE" | grep -q '^OK'
+                    '''
+                }
             }
         }
     }
- 
+
     post {
         success {
             echo 'Deployment successful!'
-            echo "Deployed to ${TOMCAT_URL}${CONTEXT_PATH} (Tomcat private IP)"
             echo "View the app at ${TOMCAT_PUBLIC_URL}${CONTEXT_PATH}"
         }
         failure {
-            echo 'Pipeline failed. Check console output for details.'
+            echo 'Pipeline failed. Check the console output for details.'
         }
         always {
             echo 'Pipeline finished. Cleaning workspace...'
