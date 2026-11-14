@@ -12,8 +12,13 @@ pipeline {
         TOMCAT_PUBLIC_URL = 'http://16.192.134.170:8080'
         // Application path on Tomcat
         CONTEXT_PATH = '/devops-trends'
-        // Folder that holds pom.xml, or '.' when it is at the top level
-        APP_DIR = 'devops-trends'
+        // '.' because pom.xml is at the root level of your repository
+        APP_DIR = '.'
+    }
+
+    tools {
+        jdk 'jdk-21'             // Verify this exact casing in Manage Jenkins > Tools
+        maven 'maven-3.9.15'     // Matches your Jenkins Maven tool name
     }
 
     stages {
