@@ -1,66 +1,80 @@
 pipeline {
     agent any
 
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        // Tomcat private IP, used for the deployment
+        TOMCAT_URL = 'http://172.31.6.203:8080'
+        // Tomcat Elastic IP, used for browsing
+        TOMCAT_PUBLIC_URL = 'http://56.228.111.74:8080'
+        // Application path on Tomcat
+        CONTEXT_PATH = '/devops-trends'
+        // '.' because pom.xml is at the root level of your repository
+        APP_DIR = '.'
+    }
+
     tools {
         jdk 'jdk-21'             // Verify this exact casing in Manage Jenkins > Tools
         maven 'maven-3.9.15'     // Matches your Jenkins Maven tool name
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 echo 'Pulling source code from GitHub...'
                 git branch: 'main',
-                    credentialsId: 'GitHubCreds',
+                    credentialsId: 'github-pat',
                     url: 'https://github.com/awanmercy/devops-trends.git'
             }
         }
-
         stage('Build') {
             steps {
                 echo 'Compiling the application...'
-                bat 'mvn clean compile'
+                dir("${APP_DIR}") {
+                    sh 'mvn -B clean compile'
+                }
             }
         }
-
         stage('Test') {
             steps {
                 echo 'Running tests...'
-                bat 'mvn test'
+                dir("${APP_DIR}") {
+                    sh 'mvn -B test'
+                }
             }
         }
-
         stage('Package') {
             steps {
                 echo 'Packaging into WAR file...'
-                bat 'mvn package -DskipTests'
+                dir("${APP_DIR}") {
+                    sh 'mvn -B package -DskipTests'
+                }
             }
         }
-
         stage('Deploy to Tomcat') {
             steps {
-                echo 'Deploying to local Tomcat...'
-                deploy adapters: [
-                    tomcat9(
-                        credentialsId: 'TomcatCreds',
-                        url: 'http://localhost:8080'
-                    )
-                ],
-                contextPath: '/devops-trends',
-                war: 'target/devops-trends.war'
+                echo "Deploying to Tomcat 10 at ${TOMCAT_URL}..."
+                withCredentials([usernamePassword(credentialsId: 'TomcatCreds', usernameVariable: 'TC_USER', passwordVariable: 'TC_PASS')]) {
+                    sh '''
+                        RESPONSE=$(curl -sS --connect-timeout 10 -u "$TC_USER:$TC_PASS" -T "$APP_DIR/target/devops-trends.war" "$TOMCAT_URL/manager/text/deploy?path=$CONTEXT_PATH&update=true")
+                        echo "$RESPONSE"
+                        echo "$RESPONSE" | grep -q '^OK'
+                    '''
+                }
             }
         }
-
     }
 
     post {
         success {
             echo 'Deployment successful!'
-            echo 'App running at: http://localhost:8080/devops-trends'
+            echo "View the app at ${TOMCAT_PUBLIC_URL}${CONTEXT_PATH}"
         }
         failure {
-            echo 'Pipeline failed. Check console output for details.'
+            echo 'Pipeline failed. Check the console output for details.'
         }
         always {
             echo 'Pipeline finished. Cleaning workspace...'
