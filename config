@@ -1,0 +1,9 @@
+Host Jenkins-ec2
+    HostName 16.170.87.157
+    User ec2-user
+    IdentityFile ~/.ssh/newkp.pem
+
+Host Tomcat-ec2
+    HostName 13.53.169.206
+    User ec2-user
+    IdentityFile ~/.ssh/newkp.pem    
