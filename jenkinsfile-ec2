@@ -7,9 +7,9 @@ pipeline {
 
     environment {
         // Tomcat private IP, used for the deployment
-        TOMCAT_URL = 'http://172.31.2.5:8080'
+        TOMCAT_URL = 'http://172.31.8.13:8080'
         // Tomcat Elastic IP, used for browsing
-        TOMCAT_PUBLIC_URL = 'http://16.171.122.138:8080'
+        TOMCAT_PUBLIC_URL = 'http://51.21.70.179:8080'
         // Application path on Tomcat
         CONTEXT_PATH = '/devops-trends'
         // '.' because pom.xml is at the root level of your repository
